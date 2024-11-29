@@ -243,6 +243,8 @@ func (l *Logger) openNew() error {
 // backupName creates a new filename from the given name, inserting a timestamp
 // between the filename and the extension, using the local time if requested
 // (otherwise UTC).
+// Add part suffix before extension if file with output name already exist
+// Example: my_name-2006-01-02.log -> my_name-2006-01-02-part2.log -> my_name-2006-01-02-part3.log
 func backupName(name string, local bool, timeformat string) string {
 	dir := filepath.Dir(name)
 	filename := filepath.Base(name)
@@ -254,7 +256,18 @@ func backupName(name string, local bool, timeformat string) string {
 	}
 
 	timestamp := t.Format(timeformat)
-	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
+	newName := filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
+	part := 1
+	for {
+		stat, _ := os.Stat(newName)
+		if stat == nil {
+			break
+		}
+		part++
+		newName = filepath.Join(dir, fmt.Sprintf("%s-%s-part%d%s", prefix, timestamp, part, ext))
+	}
+
+	return newName
 }
 
 // openExistingOrNew opens the logfile if it exists and if the current write
