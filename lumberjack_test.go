@@ -92,7 +92,7 @@ func TestWriteTooLong(t *testing.T) {
 
 func TestMakeLogDir(t *testing.T) {
 	currentTime = fakeTime
-	dir := time.Now().Format("TestMakeLogDir" + backupTimeFormat)
+	dir := time.Now().Format("TestMakeLogDir" + defaultBackupTimeFormat)
 	dir = filepath.Join(os.TempDir(), dir)
 	defer os.RemoveAll(dir)
 	filename := logFile(dir)
@@ -454,7 +454,7 @@ func TestOldLogFiles(t *testing.T) {
 
 	// This gives us a time with the same precision as the time we get from the
 	// timestamp in the name.
-	t1, err := time.Parse(backupTimeFormat, fakeTime().UTC().Format(backupTimeFormat))
+	t1, err := time.Parse(defaultBackupTimeFormat, fakeTime().UTC().Format(defaultBackupTimeFormat))
 	isNil(err, t)
 
 	backup := backupFile(dir)
@@ -463,7 +463,7 @@ func TestOldLogFiles(t *testing.T) {
 
 	newFakeTime()
 
-	t2, err := time.Parse(backupTimeFormat, fakeTime().UTC().Format(backupTimeFormat))
+	t2, err := time.Parse(defaultBackupTimeFormat, fakeTime().UTC().Format(defaultBackupTimeFormat))
 	isNil(err, t)
 
 	backup2 := backupFile(dir)
@@ -492,6 +492,28 @@ func TestTimeFromName(t *testing.T) {
 		{"foo-2014-05-04T14-44-33.555.log", time.Date(2014, 5, 4, 14, 44, 33, 555000000, time.UTC), false},
 		{"foo-2014-05-04T14-44-33.555", time.Time{}, true},
 		{"2014-05-04T14-44-33.555.log", time.Time{}, true},
+		{"foo.log", time.Time{}, true},
+	}
+
+	for _, test := range tests {
+		got, err := l.timeFromName(test.filename, prefix, ext)
+		equals(got, test.want, t)
+		equals(err != nil, test.wantErr, t)
+	}
+}
+
+func TestCustomBackupTimeFormat(t *testing.T) {
+	l := &Logger{Filename: "/var/log/myfoo/foo.log", BackupTimeFormat: "20060102_150405"}
+	prefix, ext := l.prefixAndExt()
+
+	tests := []struct {
+		filename string
+		want     time.Time
+		wantErr  bool
+	}{
+		{"foo-20140504_144433.log", time.Date(2014, 5, 4, 14, 44, 33, 0, time.UTC), false},
+		{"foo-20140504_144433", time.Time{}, true},
+		{"20140504_144433.log", time.Time{}, true},
 		{"foo.log", time.Time{}, true},
 	}
 
@@ -710,7 +732,7 @@ func TestJson(t *testing.T) {
 // It should be based on the name of the test, to keep parallel tests from
 // colliding, and must be cleaned up after the test is finished.
 func makeTempDir(name string, t testing.TB) string {
-	dir := time.Now().Format(name + backupTimeFormat)
+	dir := time.Now().Format(name + defaultBackupTimeFormat)
 	dir = filepath.Join(os.TempDir(), dir)
 	isNilUp(os.Mkdir(dir, 0700), t, 1)
 	return dir
@@ -734,17 +756,17 @@ func logFile(dir string) string {
 }
 
 func backupFile(dir string) string {
-	return filepath.Join(dir, "foobar-"+fakeTime().UTC().Format(backupTimeFormat)+".log")
+	return filepath.Join(dir, "foobar-"+fakeTime().UTC().Format(defaultBackupTimeFormat)+".log")
 }
 
 func backupFileLocal(dir string) string {
-	return filepath.Join(dir, "foobar-"+fakeTime().Format(backupTimeFormat)+".log")
+	return filepath.Join(dir, "foobar-"+fakeTime().Format(defaultBackupTimeFormat)+".log")
 }
 
 // logFileLocal returns the log file name in the given directory for the current
 // fake time using the local timezone.
 func logFileLocal(dir string) string {
-	return filepath.Join(dir, fakeTime().Format(backupTimeFormat))
+	return filepath.Join(dir, fakeTime().Format(defaultBackupTimeFormat))
 }
 
 // fileCount checks that the number of files in the directory is exp.

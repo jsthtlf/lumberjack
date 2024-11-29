@@ -1,13 +1,5 @@
 // Package lumberjack provides a rolling logger.
 //
-// Note that this is v2.0 of lumberjack, and should be imported using gopkg.in
-// thusly:
-//
-//	import "gopkg.in/natefinch/lumberjack.v2"
-//
-// The package name remains simply lumberjack, and the code resides at
-// https://github.com/natefinch/lumberjack under the v2.0 branch.
-//
 // Lumberjack is intended to be one part of a logging infrastructure.
 // It is not an all-in-one solution, but instead is a pluggable
 // component at the bottom of the logging stack that simply controls the files
@@ -35,9 +27,9 @@ import (
 )
 
 const (
-	backupTimeFormat = "2006-01-02T15-04-05.000"
-	compressSuffix   = ".gz"
-	defaultMaxSize   = 100
+	defaultBackupTimeFormat = "2006-01-02T15-04-05.000"
+	compressSuffix          = ".gz"
+	defaultMaxSize          = 100
 )
 
 // ensure we always implement io.WriteCloser
@@ -105,6 +97,11 @@ type Logger struct {
 	// Compress determines if the rotated log files should be compressed
 	// using gzip. The default is not to perform compression.
 	Compress bool `json:"compress" yaml:"compress"`
+
+	// BackupTimeFormat specifies the formatting standard for time when creating backup log files.
+	// The default is defaultBackupTimeFormat
+	// TODO: not work with nanoseconds
+	BackupTimeFormat string `json:"backuptimeformat" yaml:"backuptimeformat"`
 
 	size int64
 	file *os.File
@@ -217,7 +214,10 @@ func (l *Logger) openNew() error {
 		// Copy the mode off the old logfile.
 		mode = info.Mode()
 		// move the existing file
-		newname := backupName(name, l.LocalTime)
+		if len(l.BackupTimeFormat) == 0 {
+			l.BackupTimeFormat = defaultBackupTimeFormat
+		}
+		newname := backupName(name, l.LocalTime, l.BackupTimeFormat)
 		if err := os.Rename(name, newname); err != nil {
 			return fmt.Errorf("can't rename log file: %s", err)
 		}
@@ -243,7 +243,7 @@ func (l *Logger) openNew() error {
 // backupName creates a new filename from the given name, inserting a timestamp
 // between the filename and the extension, using the local time if requested
 // (otherwise UTC).
-func backupName(name string, local bool) string {
+func backupName(name string, local bool, timeformat string) string {
 	dir := filepath.Dir(name)
 	filename := filepath.Base(name)
 	ext := filepath.Ext(filename)
@@ -253,7 +253,7 @@ func backupName(name string, local bool) string {
 		t = t.UTC()
 	}
 
-	timestamp := t.Format(backupTimeFormat)
+	timestamp := t.Format(timeformat)
 	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
 }
 
@@ -442,7 +442,10 @@ func (l *Logger) timeFromName(filename, prefix, ext string) (time.Time, error) {
 		return time.Time{}, errors.New("mismatched extension")
 	}
 	ts := filename[len(prefix) : len(filename)-len(ext)]
-	return time.Parse(backupTimeFormat, ts)
+	if len(l.BackupTimeFormat) == 0 {
+		l.BackupTimeFormat = defaultBackupTimeFormat
+	}
+	return time.Parse(l.BackupTimeFormat, ts)
 }
 
 // max returns the maximum size in bytes of log files before rolling.
