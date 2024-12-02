@@ -1,4 +1,4 @@
-// +build linux
+//go:build linux
 
 package lumberjack
 
@@ -22,9 +22,10 @@ func TestMaintainMode(t *testing.T) {
 	f.Close()
 
 	l := &Logger{
-		Filename:   filename,
-		MaxBackups: 1,
-		MaxSize:    100, // megabytes
+		Filename:         filename,
+		MaxBackups:       1,
+		MaxSize:          100, // megabytes
+		BackupTimeFormat: "2006-01-02",
 	}
 	defer l.Close()
 	b := []byte("boo!")
@@ -32,7 +33,7 @@ func TestMaintainMode(t *testing.T) {
 	isNil(err, t)
 	equals(len(b), n, t)
 
-	newFakeTime()
+	//newFakeTime()
 
 	err = l.Rotate()
 	isNil(err, t)

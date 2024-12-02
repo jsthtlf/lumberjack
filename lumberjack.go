@@ -217,7 +217,7 @@ func (l *Logger) openNew() error {
 		if len(l.BackupTimeFormat) == 0 {
 			l.BackupTimeFormat = defaultBackupTimeFormat
 		}
-		newname := backupName(name, l.LocalTime, l.BackupTimeFormat)
+		newname := backupName(name, l.LocalTime, l.BackupTimeFormat, info)
 		if err := os.Rename(name, newname); err != nil {
 			return fmt.Errorf("can't rename log file: %s", err)
 		}
@@ -245,12 +245,12 @@ func (l *Logger) openNew() error {
 // (otherwise UTC).
 // Add part suffix before extension if file with output name already exist
 // Example: my_name-2006-01-02.log -> my_name-2006-01-02-part2.log -> my_name-2006-01-02-part3.log
-func backupName(name string, local bool, timeformat string) string {
+func backupName(name string, local bool, timeformat string, info os.FileInfo) string {
 	dir := filepath.Dir(name)
 	filename := filepath.Base(name)
 	ext := filepath.Ext(filename)
 	prefix := filename[:len(filename)-len(ext)]
-	t := currentTime()
+	t := createdTime(info)
 	if !local {
 		t = t.UTC()
 	}
